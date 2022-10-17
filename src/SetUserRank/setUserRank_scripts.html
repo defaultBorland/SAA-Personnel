@@ -1,0 +1,122 @@
+<script>
+
+	var usersObjects = [];
+
+	const callsign_select = document.getElementById("select_name");
+	const curRank_text = document.getElementById("currentRank_text");
+	const newRank_select = document.getElementById("select_rank");
+
+	document.addEventListener('DOMContentLoaded', function () {
+		var elems = document.querySelectorAll('select');
+		var instances = M.FormSelect.init(elems);
+	});
+
+	function accessValidation(isAdmin) {
+		document.getElementById("preloader").classList.add("hide");
+
+		if (isAdmin) {
+			document.getElementById("Main_Container").classList.remove("hide");
+			initRanks();
+		} else {
+			document.getElementById("Row_InfoCard").classList.remove("hide");
+		};
+	};
+
+	function updateNicknames(data) {
+		usersObjects = data.filter(function (user) {
+			return true;
+		});
+
+		for (var i in usersObjects) {
+			var selectobject = document.createElement("option");
+			selectobject.text = usersObjects[i].name;
+			callsign_select.appendChild(selectobject);
+		};
+		M.FormSelect.init(callsign_select);
+
+		updateData(M.FormSelect.getInstance(callsign_select).input.value);
+
+		callsign_select.addEventListener('change', (event) => {
+			document.getElementById("sbmBtn").classList.add("disabled");
+			updateData(M.FormSelect.getInstance(callsign_select).input.value);
+		});
+
+		return;
+	};
+
+	function updateData(name) {
+
+		var userObject = usersObjects.find(function (user) {
+			if (user.name == name) return true;
+		});
+
+		curRank_text.value = userObject.rank;
+
+		document.getElementById("sbmBtn").classList.remove("disabled");
+	};
+
+	function initRanks() {
+		const ranks = ["PV1", "PV2", "SPC", "SGT", "SSG", "MSG", "SMC", "WO1", "CWO", "2LT", "1LT", "CPT"];
+		for (var i in ranks) {
+			var selectobject = document.createElement("option");
+			selectobject.text = ranks[i];
+			newRank_select.appendChild(selectobject);
+		};
+		M.FormSelect.init(newRank_select);
+	};
+
+	function dataValidation(oldRank, newRank) {
+		if (oldRank === newRank) {
+			M.toast({ html: "Нельзя присвоить звание идентичное уже имеющемуся.", displayLength: 4000, classes: 'red' });
+			return false;
+		};
+
+		return true;
+	};
+
+	function buttonClicked() {
+
+		document.getElementById("sbmBtn").classList.add("disabled");
+
+		let oldRank = curRank_text.value;
+		let newRank = M.FormSelect.getInstance(newRank_select).input.value;
+
+		if (dataValidation(oldRank, newRank)) {
+			let callsign = M.FormSelect.getInstance(callsign_select).input.value;
+
+			document.getElementById("Main_Container").classList.add("hide");
+			document.getElementById("loader").classList.remove("hide");
+
+			google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).changeRank(callsign, newRank);
+		} else {
+			setTimeout(function () {
+				document.getElementById("sbmBtn").classList.remove("disabled");
+			}, 4000);
+		};
+
+		function onError() {
+			document.getElementById("loader").classList.add("hide");
+			document.getElementById("sbmBtn").classList.remove("disabled");
+
+			document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+			document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+			document.getElementById("Row_InfoCard").classList.remove("hide");
+		};
+
+		function onSuccess() {
+			document.getElementById("loader").classList.add("hide");
+			document.getElementById("sbmBtn").classList.remove("disabled");
+
+			document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+			document.getElementById("InfoCard_TextMain").innerHTML = "Звание успешно присвоено.";
+			document.getElementById("Row_InfoCard").classList.remove("hide");
+		};
+
+	};
+
+	google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+	google.script.run.withSuccessHandler(updateNicknames).getUsersData("Пользователи");
+
+	document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+
+</script>

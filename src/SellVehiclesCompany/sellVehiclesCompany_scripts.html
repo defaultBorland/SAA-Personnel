@@ -1,0 +1,364 @@
+<script>
+
+    var vehiclesBaseData = [];
+    var vehiclesCartData = [];
+
+    const date_picker = document.getElementById("date_picker");
+
+    function accessValidation(isInstructor) {
+        if (isInstructor) {
+            google.script.run.withSuccessHandler(init).getVehiclesFromBase();
+        } else {
+            document.getElementById("preloader").classList.add("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    function initDatepicker() {
+        minDate = new Date();
+        maxDate = new Date();
+
+        let i18nOptions = {
+            cancel: "Отмена",
+            clear: "Очистить",
+            done: "Выбрать",
+            previousMonth: '‹',
+            nextMonth: '›',
+            months:
+                [
+                    'Январь',
+                    'Февраль',
+                    'Март',
+                    'Апрель',
+                    'Май',
+                    'Июнь',
+                    'Июль',
+                    'Август',
+                    'Сентябрь',
+                    'Октябрь',
+                    'Ноябрь',
+                    'Декабрь'
+                ],
+            monthsShort:
+                [
+                    'Янв',
+                    'Фев',
+                    'Мар',
+                    'Апр',
+                    'Май',
+                    'Июн',
+                    'Июл',
+                    'Авг',
+                    'Сен',
+                    'Окт',
+                    'Ноя',
+                    'Дек'
+                ],
+            weekdays:
+                [
+                    'Воскресенье',
+                    'Понедельник',
+                    'Вторник',
+                    'Среда',
+                    'Четверг',
+                    'Пятница',
+                    'Суббота'
+                ],
+            weekdaysShort:
+                [
+                    'Вс',
+                    'Пн',
+                    'Вт',
+                    'Ср',
+                    'Чт',
+                    'Пт',
+                    'Сб'
+                ],
+            weekdaysAbbrev: ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+        };
+        var elems = document.querySelectorAll('.datepicker');
+
+        var instances = M.Datepicker.init(elems, {
+            autoClose: true,
+            format: "dd.mm.yyyy",
+            defaultDate: new Date,
+            setDefaultDate: true,
+            firstDay: 1,
+            minDate: minDate,
+            maxDate: maxDate,
+            yearRange: 1,
+            showDaysInNextAndPreviousMonths: true,
+            i18n: i18nOptions
+        });
+    };
+
+    function init(data) {
+        vehiclesBaseData = data;
+
+        if (vehiclesBaseData.length < 1) {
+            document.getElementById("InfoCard_ColorMain").className = "card-panel yellow accent-2";
+            document.getElementById("InfoCard_TextMain").innerHTML = "На главной базе отсутствуют технические единицы для возможности осуществления продажи.";
+            document.getElementById("InfoCard_TextMain").className = "black-text";
+
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        } else {
+        initDatepicker();
+
+            // Base Vehicles Table Init
+            let divBase = document.getElementById("div_garage_table");
+            let base_tbody = createTable(divBase);
+            base_tbody.id = "base_tbody";
+            populateTable(vehiclesBaseData.sort((veh1, veh2) => {return veh1.name.localeCompare(veh2.name)}), base_tbody, "Продать");
+
+            // Cart Table Init
+            let divCart = document.getElementById("div_cart_table");
+            let cart_tbody = createTable(divCart);
+            cart_tbody.id = "cart_tbody";
+            cart_tbody.parentNode.appendChild(createFooter());
+
+            document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+            document.getElementById("Main_Container").classList.remove("hide");
+        };
+        document.getElementById("preloader").classList.add("hide");
+    };
+
+    function createTable(divBody) {
+
+        let table = document.createElement("table");
+        table.className = "highlight centered";
+
+        // HEADER
+        let thead = document.createElement("thead");
+        let headRow = document.createElement("tr");
+
+        // HEADER COLUMNS
+        // NAME
+        let nameHeader = document.createElement("th");
+        nameHeader.style = style = "text-align: center;"
+        nameHeader.appendChild(document.createTextNode("Наименование"));
+        headRow.appendChild(nameHeader);
+
+        // TYPE
+        let classnameHeader = document.createElement("th");
+        classnameHeader.style = style = "text-align: center;"
+        classnameHeader.appendChild(document.createTextNode("Тип"));
+        headRow.appendChild(classnameHeader);
+
+        // COST
+        let costHeader = document.createElement("th");
+        costHeader.style = style = "text-align: center;"
+        costHeader.appendChild(document.createTextNode("Стоимость"));
+        headRow.appendChild(costHeader);
+
+        // BUTTON
+        let buttonHeader = document.createElement("th");
+        headRow.appendChild(buttonHeader);
+
+        thead.append(headRow);
+
+        // BODY
+        let tbody = document.createElement("tbody");
+
+        // ASSEMBLING TABLE
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        // ADD TABLE TO PROVIDED DIV
+        divBody.appendChild(table);
+
+        return tbody;
+    };
+
+    function populateTable(vehicles, tbody, buttonType) {
+
+        for (vehicle of vehicles) {
+            addRow(vehicle, tbody, buttonType);
+        };
+    };
+
+    function addRow(vehicle, tbody, buttonType) {
+
+        let row = document.createElement("tr");
+
+        // VEHICLE NAME
+        let cellName = document.createElement("td");
+        cellName.appendChild(document.createTextNode(vehicle.name));
+        row.appendChild(cellName);
+
+        // TYPE
+        let cellClassname = document.createElement("td");
+        cellClassname.appendChild(document.createTextNode(vehicle.type));
+        row.appendChild(cellClassname);
+
+        // COST
+        let cellCost = document.createElement("td");
+        cellCost.appendChild(document.createTextNode(Math.floor(vehicle.cost * 0.2).toLocaleString('ru-RU') + " $"));
+        row.appendChild(cellCost);
+
+        // BUTTON
+        let cellButton = document.createElement("td");
+        let button = document.createElement("button");
+        if (buttonType === "Вернуть") {
+            button.innerHTML = "&#8203;";
+
+            let i = document.createElement("i");
+            i.appendChild(document.createTextNode("money_off"));
+            i.className = "material-icons";
+
+            button.appendChild(i);
+            button.addEventListener("click", returnToBase);
+        } else { // Продать
+            button.innerHTML = "&#8203;";
+
+            let i = document.createElement("i");
+            i.appendChild(document.createTextNode("attach_money"));
+            i.className = "material-icons";
+
+            button.appendChild(i)
+            button.addEventListener("click", addToCart);
+        };
+        button.className = "waves-effect waves-light btn";
+        cellButton.appendChild(button);
+        row.appendChild(cellButton);
+
+        tbody.appendChild(row);
+    };
+
+    function addToCart(evt) {
+
+        let vehicleName = evt.currentTarget.parentNode.parentNode.firstChild.firstChild.data;
+        let string = "Добавлено в список: " + vehicleName;
+        M.toast({ html: string, displayLength: 2000 });
+
+        let table = evt.currentTarget.parentNode.parentNode.parentNode.parentNode;
+
+        let index = vehiclesBaseData.findIndex(vehicle => { return vehicle.name === vehicleName });
+        if (index > -1) {
+            vehiclesCartData.push(vehiclesBaseData[index]);
+            vehiclesBaseData.splice(index, 1);
+
+            let old_tbody = document.getElementById("cart_tbody");
+            let new_tbody = document.createElement("tbody");
+            new_tbody.id = "cart_tbody";
+
+            populateTable(vehiclesCartData.sort((veh1, veh2) => {return veh1.name.localeCompare(veh2.name)}), new_tbody, "Вернуть");
+            old_tbody.parentNode.replaceChild(new_tbody, old_tbody);
+        };
+
+        let i = evt.currentTarget.parentNode.parentNode.rowIndex;
+        table.deleteRow(i);
+
+        updateTotal();
+
+    };
+
+    function returnToBase(evt) {
+
+        let vehicleName = evt.currentTarget.parentNode.parentNode.firstChild.firstChild.data;
+        let string = "Удалено из списка: " + vehicleName;
+        M.toast({ html: string, displayLength: 2000 });
+
+        let table = evt.currentTarget.parentNode.parentNode.parentNode.parentNode;
+
+        let index = vehiclesCartData.findIndex(vehicle => { return vehicle.name === vehicleName });
+        if (index > -1) {
+            vehiclesBaseData.push(vehiclesCartData[index]);
+            vehiclesCartData.splice(index, 1);
+
+            let old_tbody = document.getElementById("base_tbody");
+            let new_tbody = document.createElement("tbody");
+            new_tbody.id = "base_tbody";
+
+            populateTable(vehiclesBaseData.sort((veh1, veh2) => {return veh1.name.localeCompare(veh2.name)}), new_tbody, "Продать");
+            old_tbody.parentNode.replaceChild(new_tbody, old_tbody);
+        };
+
+        let i = evt.currentTarget.parentNode.parentNode.rowIndex;
+        table.deleteRow(i);
+
+        updateTotal();
+    };
+
+    function createFooter() {
+        let footer = document.createElement("tfoot");
+        let frow = document.createElement("tr");
+
+        let cellTotalText = document.createElement("td");
+        cellTotalText.appendChild(document.createTextNode("Итого"));
+        frow.appendChild(cellTotalText);
+
+        let cellTotalSum = document.createElement("td");
+        let totalSum = document.createTextNode("0 $");
+        cellTotalSum.id = "cart_totalSum";
+        cellTotalSum.appendChild(totalSum);
+        frow.appendChild(cellTotalSum);
+
+        footer.appendChild(frow);
+
+        return footer;
+    };
+
+    function updateTotal() {
+        let total = vehiclesCartData.reduce((sum, vehicle) => sum + Math.floor(parseInt(vehicle.cost) * 0.2), 0);
+        document.getElementById("cart_totalSum").firstChild.nodeValue = total.toLocaleString('ru-RU') + " $";
+    };
+
+    function fetchCart() {
+        let tbody = document.getElementById("cart_tbody");
+        let vehiclesNamesToSell = [];
+
+        for (let i = 0; i < tbody.children.length; i++) {
+            vehiclesNamesToSell.push(tbody.children[i].children[0].firstChild.data);
+        };
+
+        return vehiclesNamesToSell;
+    };
+
+    function dataValidation(vehiclesNamesToSell) {
+
+        if (vehiclesNamesToSell.length < 1) {
+            M.toast({ html: "Ошибка: Список продажи пуст.", displayLength: 4000, classes: 'red' });
+            return false;
+        };
+
+        return true;
+    };
+
+    function buttonClicked() {
+
+        document.getElementById("sbmBtn").classList.add("disabled");
+        let vehiclesNamesToSell = fetchCart();
+
+        if (dataValidation(vehiclesNamesToSell)) {
+            document.getElementById("Main_Container").classList.add("hide");
+            document.getElementById("loader").classList.remove("hide");
+
+            google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).sellVehiclesCompany(vehiclesNamesToSell);
+        } else {
+            setTimeout(function () {
+                document.getElementById("sbmBtn").classList.remove("disabled");
+            }, 4000);
+        };
+
+        function onError() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+
+        function onSuccess() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Продажа совершена.";
+            document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    google.script.run.withSuccessHandler(accessValidation).checkIsInstructor();
+</script>

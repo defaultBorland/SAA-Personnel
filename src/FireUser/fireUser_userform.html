@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+  <html>
+    <head>
+      <!--Import Google Icon Font-->
+      <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+      <!-- Compiled and minified CSS -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+
+      <!--Let browser know website is optimized for mobile-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    </head>
+
+    <body> <!-- START BODY -->
+      
+      <div class="container hide" id="Main_Container"> <!-- MAIN CONTAINER -->
+
+        <div class="row"> <!-- START NAME ROW -->
+          
+          <div class="input-field col s12">
+            <i class="material-icons prefix">perm_identity</i>
+            <select id="select_name"></select>
+            <label>Позывной</label>
+          </div>
+
+        </div> <!-- END NAME ROW -->
+
+        <div class="row"> <!-- START EMAIL, RANK ROW -->
+          
+          <div class="input-field col s8">
+            <i class="material-icons prefix">mail</i>
+            <input disabled value="somefool@gmail.com" id="mail_text" type="text">
+            <label for="mail_text">Почта</label>
+          </div>
+
+          <div class="input-field col s4">
+            <i class="material-icons prefix">keyboard_capslock</i>
+            <input disabled value="PV1" id="rank_text" type="text">
+            <label for="rank_text">Звание</label>
+          </div>
+          
+        </div> <!-- END EMAIL, RANK ROW -->
+        
+
+        <div class="row"> <!-- START SUID, MONEY ROW -->
+          
+          <div class="input-field col s6">
+            <i class="material-icons prefix">fingerprint</i>
+            <input disabled value="00000000000000000" id="steamid_text" type="text">
+            <label for="steamid_text">SteamID</label>
+          </div>
+          
+          <div class="input-field col s6">
+            <i class="material-icons prefix">account_balance</i>
+            <input disabled value="0 $" id="balance_text" type="text">
+            <label for="balance_text">Баланс</label>
+          </div>
+          
+        </div> <!-- END SUID, MONEY ROW -->
+
+
+        <div class="row"> <!-- START CLASS1 CLASS2 ROW -->
+          <div class="input-field col s6">
+            <i class="material-icons prefix">assignment</i>
+            <input disabled value="0 $" id="primclass_text" type="text">
+            <label for="primclass_text">Специализация</label>
+          </div>
+          <div class="input-field col s6">
+            <i class="material-icons prefix">assignment</i>
+            <input disabled value="0 $" id="secclass_text" type="text">
+            <label for="secclass_text">Дополнительная</label>
+          </div>
+        </div> <!-- END CLASS1 CLASS2 ROW -->
+
+
+        <div class="row"> <!-- START COMMENT BUTTON ROW -->
+              
+          <div class="input-field col s6">
+            <i class="material-icons prefix">mode_edit</i>
+            <textarea placeholder="Причина" id="input_comment" class="materialize-textarea"></textarea>
+            <label for="input_comment">Комментарий</label>
+          </div>
+          <div class="input-field col s6">
+            <button class="btn waves-effect waves-light red" id="sbmBtn" type="submit">Уволить
+              <i class="material-icons right">delete_forever</i>
+            </button>
+          </div> 
+            
+        </div> <!-- END COMMENT BUTTON ROW -->
+
+      </div> <!-- MAIN CONTAINER -->
+
+      <div class="container valign-wrapper center-align" id="preloader" style = "position:relative; top:130px;"> <!-- START PRELOADER CONTAINER -->
+        <div class="progress">
+          <div class="indeterminate"></div>
+        </div>
+      </div> <!-- END PRELOADER CONTAINER -->
+
+      <div class="preloader-wrapper valign-wrapper center-align big active hide" style="position:absolute; top:45%; left:45%;" id="loader"> <!-- START LOADER CONTAINER -->
+        <div class="spinner-layer spinner-green-only">
+          <div class="circle-clipper left">
+            <div class="circle"></div>
+          </div><div class="gap-patch">
+            <div class="circle"></div>
+          </div><div class="circle-clipper right">
+            <div class="circle"></div>
+          </div>
+        </div>
+      </div> <!-- END LOADER CONTAINER -->
+
+
+      <div> <!-- START INFO CARDS MESSAGES -->
+        
+        <div class="row hide" id="Row_InfoCard"> <!-- START INFO CARD ROW -->
+          <div class="col s12">
+            <div class="card-panel red accent-2" id="InfoCard_ColorMain">
+              <span class="white-text" id="InfoCard_TextMain">Эта опция доступна только администраторам.</span>
+            </div>
+            <div class="card-panel yellow accent-2 hide" id="InfoCard_ColorAdd">
+              <span class="black-text" id="InfoCard_TextAdd"> Доступ к редактированию таблицы будет отозван автоматически в течение 10 минут.</span>
+            </div>
+          </div> <!-- END INFO CARD ROW -->
+        </div>
+
+      </div> <!-- END INFO CARDS MESSAGES -->
+
+
+      <!-- Compiled and minified JavaScript -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+      <?!= include('FireUser/fireUser_scripts'); ?>
+      
+    </body>  <!-- END BODY -->
+  </html>

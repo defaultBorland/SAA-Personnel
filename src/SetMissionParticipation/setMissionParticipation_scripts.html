@@ -1,0 +1,147 @@
+<script>
+
+    var usersObjects = [];
+
+    function accessValidation(isAdmin) {
+        
+        if (isAdmin) {
+            document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+            google.script.run.withSuccessHandler(loadTable).getUsersParticipation();
+        } else {
+            document.getElementById("preloader").classList.add("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    function loadTable(data) {
+        usersObjects = data;
+
+        function initCheckbox(userObject) {
+            let userSUID = userObject.steamid;
+            let userMissionRole = userObject.missionRole;
+            let checkboxTypes = ["Y", "C", "R", "O", "Z", "F"];
+
+            if (userMissionRole === "N") {
+                return false;
+            } else {
+
+                document.getElementById("checkbox" + userMissionRole + "_" + userSUID).setAttribute("checked", "checked");
+
+                let index = checkboxTypes.indexOf(userMissionRole);
+                if (index !== -1) {
+                    checkboxTypes.splice(index, 1);
+                };
+
+                checkboxTypes.forEach(function(type) {
+                    document.getElementById("checkbox" + type + "_" + userSUID).setAttribute("disabled", "disabled");
+                });
+
+                if (userMissionRole !== "Z") { // Increase counter value if checked is not Zeus
+                    document.getElementById("counter_text").value = Number(document.getElementById("counter_text").value) + 1;
+                };
+
+                return true;
+            };
+        };
+
+        var table = document.getElementById("mainTable");
+        
+        for (let i = 0; i < usersObjects.length; i++) {
+            table.innerHTML += '<tr><td id="suid">Типа Позывной</td><td><label><input type="checkbox" id="myCheckbox1" class="filled-in"/><span></span></label></td><td><label><input type="checkbox" id="myCheckbox2" class="filled-in"/><span></span></label></td><td><label><input type="checkbox" id="myCheckbox3" class="filled-in"/><span></span></label></td><td><label><input type="checkbox" id="myCheckbox4" class="filled-in"/><span></span></label></td><td><label><input type="checkbox" id="myCheckbox5" class="filled-in"/><span></span></label></td><td><label><input type="checkbox" id="myCheckbox6" class="filled-in"/><span></span></label></td></tr>';
+            
+            document.getElementById("suid").innerHTML = usersObjects[i].callsign;
+            document.getElementById("suid").id = "suid_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox1").id = "checkboxY_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox2").id = "checkboxC_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox3").id = "checkboxR_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox4").id = "checkboxO_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox5").id = "checkboxZ_" + usersObjects[i].steamid;
+            document.getElementById("myCheckbox6").id = "checkboxF_" + usersObjects[i].steamid;
+
+            initCheckbox(usersObjects[i]);
+
+        };
+
+        var checkboxesList = document.querySelectorAll("input[type=checkbox]");
+
+        for (let i = 0; i < checkboxesList.length; i++) {
+            checkboxesList[i].addEventListener('change', function() {
+                let checkboxType = this.id[8];
+                let userSUID = this.id.slice(-17);
+                let checkboxTypes = ["Y", "C", "R", "O", "Z", "F"];
+                
+                    
+                let index = checkboxTypes.indexOf(checkboxType);
+                if (index !== -1) {
+                    checkboxTypes.splice(index, 1);
+                };
+
+                if (this.checked) {
+                    
+                    checkboxTypes.forEach(function(type) {
+                        document.getElementById("checkbox" + type + "_" + userSUID).setAttribute("disabled", "disabled");
+                    });
+
+                    var user = usersObjects.find(function(obj) {
+                        return obj.steamid == userSUID;
+                    });
+
+                    if (checkboxType !== "Z") { // Increase counter value if checked is not Zeus
+                        document.getElementById("counter_text").value = Number(document.getElementById("counter_text").value) + 1;
+                    };
+
+                    user.missionRole = checkboxType;
+
+                } else {
+                    checkboxTypes.forEach(function(type) {
+                        document.getElementById("checkbox" + type + "_" + userSUID).removeAttribute("disabled");
+                    });
+
+                    var user = usersObjects.find(function(obj) {
+                        return obj.steamid == userSUID;
+                    });
+
+                    if (checkboxType !== "Z") { // Decrease counter value if unchecked is not Zeus
+                        document.getElementById("counter_text").value = Number(document.getElementById("counter_text").value) - 1;
+                    };
+
+                    user.missionRole = "N";
+                };
+            });
+        };
+        document.getElementById("preloader").classList.add("hide");
+        document.getElementById("Main_Container").classList.remove("hide");
+    };
+
+    function buttonClicked() {
+    
+        document.getElementById("sbmBtn").classList.add("disabled");
+
+        document.getElementById("Main_Container").classList.add("hide");
+        document.getElementById("loader").classList.remove("hide");
+
+        google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).setUsersParticipation(usersObjects);
+
+        function onError() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+            
+            document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка."; 
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+
+        function onSuccess() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+            
+            document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Участие в игре проставлено.";
+            document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+
+</script>

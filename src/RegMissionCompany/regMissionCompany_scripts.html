@@ -1,0 +1,419 @@
+<script>
+
+    var vehiclesFOBData = [];
+    var missionData = [];
+
+    const date_picker = document.getElementById("date_picker");
+    const playersCount_text = document.getElementById("playersCount_text");
+    const commanders_text = document.getElementById("commanders_text");
+    const zeuses_text = document.getElementById("zeuses_text");
+    const map_text = document.getElementById("map_text");
+
+    const prepayment_text = document.getElementById("prepayment_text");
+    const payment_text = document.getElementById("payment_text");
+    const expenses_text = document.getElementById("expenses_text");
+    const comment_text = document.getElementById("comment_text");
+    const alliedInfantry_text = document.getElementById("alliedInfantry_text");
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var elems = document.querySelectorAll('.collapsible');
+        var instances = M.Collapsible.init(elems, {});
+
+        var elems = document.querySelectorAll('.dropdown-trigger');
+        var instances = M.Dropdown.init(elems, {
+            constrainWidth: false
+        });
+
+        var elems = document.querySelectorAll('select');
+        var instances = M.FormSelect.init(elems);
+    });
+
+    function accessValidation(isAdmin) {
+        if (isAdmin) {
+            google.script.run.withSuccessHandler(initVehiclesData).getVehiclesCompany("FOB");
+        } else {
+            document.getElementById("preloader").classList.add("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    function initDatepicker(minDate, maxDate) {
+        minDate = new Date(minDate);
+        minDate.setDate(minDate.getDate() + 1);
+        maxDate = new Date(maxDate);
+
+        let i18nOptions = {
+            cancel: "Отмена",
+            clear: "Очистить",
+            done: "Выбрать",
+            previousMonth: '‹',
+            nextMonth: '›',
+            months:
+                [
+                    'Январь',
+                    'Февраль',
+                    'Март',
+                    'Апрель',
+                    'Май',
+                    'Июнь',
+                    'Июль',
+                    'Август',
+                    'Сентябрь',
+                    'Октябрь',
+                    'Ноябрь',
+                    'Декабрь'
+                ],
+            monthsShort:
+                [
+                    'Янв',
+                    'Фев',
+                    'Мар',
+                    'Апр',
+                    'Май',
+                    'Июн',
+                    'Июл',
+                    'Авг',
+                    'Сен',
+                    'Окт',
+                    'Ноя',
+                    'Дек'
+                ],
+            weekdays:
+                [
+                    'Воскресенье',
+                    'Понедельник',
+                    'Вторник',
+                    'Среда',
+                    'Четверг',
+                    'Пятница',
+                    'Суббота'
+                ],
+            weekdaysShort:
+                [
+                    'Вс',
+                    'Пн',
+                    'Вт',
+                    'Ср',
+                    'Чт',
+                    'Пт',
+                    'Сб'
+                ],
+            weekdaysAbbrev: ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+        };
+        var elems = document.querySelectorAll('.datepicker');
+
+        var instances = M.Datepicker.init(elems, {
+            autoClose: true,
+            format: "dd.mm.yyyy",
+            defaultDate: new Date,
+            setDefaultDate: true,
+            firstDay: 1,
+            minDate: minDate,
+            maxDate: maxDate,
+            yearRange: 1,
+            showDaysInNextAndPreviousMonths: true,
+            i18n: i18nOptions
+        });
+    };
+
+    function initVehiclesData(data) {
+        vehiclesFOBData = data;
+        google.script.run.withSuccessHandler(init).getMissionCompanyData();
+    };
+
+    function init(missionParams) {
+        missionData = missionParams;
+
+        playersCount_text.value = missionParams.usersCount;
+        commanders_text.value = missionParams.commanders;
+        zeuses_text.value = missionParams.zeuses;
+
+        initDatepicker(missionParams.prevMissionDate, missionParams.today);
+
+        formatMoneysInput();
+        M.updateTextFields();
+
+        dropdownClear(document.getElementById("dropdown_button"));
+        dropdownPopulate(document.getElementById("dropdown_button"));
+
+        document.getElementById("preloader").classList.add("hide");
+        document.getElementById("Main_Container").classList.remove("hide");
+        document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    };
+
+    function dropdownClear(dropdown) {
+        while (dropdown.firstChild) {
+            dropdown.removeChild(dropdown.lastChild);
+        };
+    };
+
+    function dropdownPopulate(dropdown) {
+        let values = vehiclesFOBData.map(veh => { return veh.name });
+        let textValues = Array.from(document.querySelectorAll("[id^='text_']"), function (node) { return node.firstChild.data });
+        textValues.forEach(nameValue => {
+            let index = values.findIndex(value => { return value === nameValue });
+            if (index > -1) { values.splice(index, 1) };
+        });
+
+        for (let value of values) {
+            var anchor = document.createElement("a");
+            anchor.appendChild(document.createTextNode(value));
+            anchor.setAttribute["href", "#"];
+
+            anchor.addEventListener("click", eventAddRow);
+
+            var li = document.createElement("li");
+            li.appendChild(anchor);
+            dropdown.appendChild(li);
+        };
+    };
+
+    function removeSelectOptions(element_select) {
+        while (element_select.options.length > 0) {
+            element_select.remove(0);
+        }
+    };
+
+    function selectLoadoutsUpdate(loadoutSelect, vehicleName) {
+
+        let values = vehiclesFOBData.find(veh => { return veh.name === vehicleName }).ammunitionSets;
+
+        removeSelectOptions(loadoutSelect);
+
+        for (let value of values) {
+            var selectOption = document.createElement("option");
+            selectOption.text = value;
+            loadoutSelect.appendChild(selectOption);
+        };
+
+        M.FormSelect.init([loadoutSelect]);
+
+        return loadoutSelect;
+    };
+
+    function eventAddRow(evt) {
+        let string = "Добавлено: " + evt.target.firstChild.data;
+        M.toast({ html: string, displayLength: 2000 });
+
+        let dropdown = document.getElementById("dropdown_button");
+        dropdown.removeChild(evt.target.parentNode);
+        addRow(evt.target.firstChild.data);
+    };
+
+    function addRow(vehicleName) {
+        var table = document.getElementById("deploy_table");
+        var tableBody = document.getElementById("deploy_table_tbody");
+        var row = document.createElement("tr");
+
+        // VEHICLE TEXT
+        var cell = document.createElement("td");
+        var name_text = document.createTextNode(vehicleName);
+        cell.id = "text_" + table.rows.length;
+        cell.appendChild(name_text);
+        row.appendChild(cell);
+
+        // LOADOUT SELECT
+        var cell = document.createElement("td");
+        var loadout_select = document.createElement("select");
+        loadout_select.id = "loadout_select_" + table.rows.length;
+        loadout_select = selectLoadoutsUpdate(loadout_select, vehicleName)
+        cell.appendChild(loadout_select);
+        row.appendChild(cell);
+
+        // REARMS
+        var cell = document.createElement("td");
+        var rearms_input = document.createElement("input");
+        rearms_input.type = "number";
+        rearms_input.value = 0;
+        rearms_input.setAttribute("min", 0);
+        rearms_input.setAttribute("max", 10);
+        rearms_input.id = "input_" + table.rows.length;
+        rearms_input.style = "text-align:center; vertical-align: middle;"
+        cell.appendChild(rearms_input);
+        row.appendChild(cell);
+
+        // SWITCH
+        var cell = document.createElement("td");
+        var div = document.createElement("div");
+        div.classList = "switch";
+        var input = document.createElement("input");
+        input.type = "checkbox";
+        input.id = "switch_" + table.rows.length;
+        var span = document.createElement("span");
+        span.classList = "lever";
+        var label = document.createElement('label');
+        label.appendChild(input);
+        label.appendChild(span);
+        label.appendChild(document.createTextNode("Утеряна"));
+        div.appendChild(label);
+        cell.appendChild(div);
+        row.appendChild(cell);
+
+        // BUTTON
+        var cell = document.createElement("td");
+        var button = document.createElement("button");
+        button.innerHTML = "Удалить";
+        button.className = "waves-effect waves-light btn";
+        button.addEventListener("click", deleteRow);
+        cell.appendChild(button);
+        row.appendChild(cell);
+
+        tableBody.appendChild(row);
+
+        var elems = document.querySelectorAll('select');
+        var instances = M.FormSelect.init(elems);
+    };
+
+    function deleteRow(evt) {
+        let string = "Удалено: " + evt.target.parentNode.parentNode.firstChild.firstChild.data
+        M.toast({ html: string, displayLength: 2000 });
+
+        var i = evt.target.parentNode.parentNode.rowIndex;
+        document.getElementById("deploy_table").deleteRow(i);
+
+        dropdownClear(document.getElementById("dropdown_button"));
+        dropdownPopulate(document.getElementById("dropdown_button"));
+    };
+
+    function fetchMissionData() {
+        let alliedInfantry = parseInt(alliedInfantry_text.value);
+        if (alliedInfantry == "" || alliedInfantry < 0) { alliedInfantry = 0 };
+
+        let prepayment = parseInt(prepayment_text.value.replace(/\s/g, ''));
+        let payment = parseInt(payment_text.value.replace(/\s/g, ''));
+        let expenses = parseInt(expenses_text.value.replace(/\s/g, ''));
+
+        let data = new Object;
+        data = {
+            date: date_picker.value,
+            usersCount: missionData.usersCount,
+            commanders: missionData.commanders,
+            zeuses: missionData.zeuses,
+            map: map_text.value,
+            prepayment: prepayment,
+            payment: payment,
+            expenses: expenses,
+            comment: comment_text.value,
+            alliedInf: alliedInfantry
+        };
+
+        return data;
+    };
+
+    function fetchVehiclesData() {
+        let rows = document.getElementById("deploy_table_tbody").rows;
+        let vehicles = [];
+
+        for (row of rows) {
+            let name = row.childNodes[0].firstChild.data; // name
+            let loadout = row.childNodes[1].firstChild.firstChild.value; // selected loadout
+            let rearms = row.childNodes[2].firstChild.value; // rearms
+            let isLost = row.childNodes[3].firstChild.firstChild.firstChild.checked; // switch (on / off)
+
+            if (rearms === "" || rearms > 10 || rearms < 0) { rearms = 0 };
+
+            let vehicle = new Object;
+            vehicle = {
+                name: name,
+                type: vehiclesFOBData.find(vehicle => { return vehicle.name === name }).type,
+                loadout: loadout,
+                rearms: parseInt(rearms),
+                isLost: isLost
+            };
+            vehicles.push(vehicle);
+        };
+
+        return vehicles;
+    };
+
+    function formatMoneysInput() {
+        prepayment_text.value = "0 $";
+        payment_text.value = "0 $";
+        expenses_text.value = "0 $";
+
+        [prepayment_text, payment_text, expenses_text].forEach(function (element) {
+            element.addEventListener('keyup', function (evt) {
+                var n = parseInt(this.value.replace(/\D/g, ''), 10) || 0;
+                if (n > 0) { n = n.toLocaleString('ru-RU') + " $" } else { n = n + " $" };
+                element.value = n;
+            }, false);
+        });
+    };
+
+    function dataValidation(missionData) {
+        try {
+            let missionDate = new Date(missionData.date.split(".").reverse());
+            let today = new Date();
+            if (missionDate > today) {
+                M.toast({ html: "Ошибка: Миссия из будущего?", displayLength: 4000, classes: 'red' });
+                return false;
+            };
+
+            if (missionData.commanders === "") {
+                M.toast({ html: "Ошибка: Не указаны командиры.", displayLength: 4000, classes: 'red' });
+                return false;
+            };
+
+            if (missionData.zeuses === "") {
+                M.toast({ html: "Ошибка: Не указан Зевс.", displayLength: 4000, classes: 'red' });
+                return false;
+            };
+
+            if (missionData.map === "") {
+                M.toast({ html: "Ошибка: Не указана карта.", displayLength: 4000, classes: 'red' });
+                return false;
+            };
+
+            let playersCount = parseInt(missionData.usersCount) || 0;
+            if (playersCount < 4) {
+                M.toast({ html: "Ошибка: Слишком малое количество игроков (<4).", displayLength: 4000, classes: 'red' });
+                return false;
+            };
+        } catch (error) {
+            M.toast({ html: "Ошибка: Проверьте правильность указанных даных.", displayLength: 4000, classes: 'red' });
+            return false;
+        };
+
+        return true;
+    };
+
+    function buttonClicked() {
+
+        document.getElementById("sbmBtn").classList.add("disabled");
+
+        let missionData = fetchMissionData();
+        let vehiclesData = fetchVehiclesData();
+
+        if (dataValidation(missionData)) {
+            document.getElementById("Main_Container").classList.add("hide");
+            document.getElementById("loader").classList.remove("hide");
+            google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).regMissionCompany(missionData, vehiclesData);
+        } else {
+            setTimeout(function () {
+                document.getElementById("sbmBtn").classList.remove("disabled");
+            }, 4000);
+        };
+
+        function onError() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+
+        function onSuccess() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Миссия зарегистрирована";
+            document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+
+</script>

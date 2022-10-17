@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--Import Google Icon Font-->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- Compiled and minified CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+
+  <!--Let browser know website is optimized for mobile-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  </head>
+
+<body>
+  <!-- START BODY -->
+
+  <div class="container hide" id="Main_Container">
+    <!-- MAIN CONTAINER -->
+
+    <div class="row">
+      <!-- START INITIAL, FINAL ROW -->
+
+      <div class="input-field col s6">
+        <i class="material-icons prefix">call_merge</i>
+        <select multiple id="initialVehicles_select"></select>
+        <label>Исходные единицы (множ)</label>
+      </div>
+
+      <div class="input-field col s6">
+        <i class="material-icons prefix">navigate_next</i>
+        <input type="text" id="finalVehicle_autocomplete" class="autocomplete">
+        <label for="finalVehicle_autocomplete">Итоговая единица</label>
+      </div>
+
+    </div> <!-- END INITIAL, FINAL ROW -->
+
+    <div class="row">
+      <!-- START PRICE, DURATION ROW -->
+
+      <div class="input-field col s6">
+        <i class="material-icons prefix">attach_money</i>
+        <input id="price_text" type="text">
+        <label for="price_text">Стоимость</label>
+      </div>
+
+      <div class="input-field col s6">
+        <i class="material-icons prefix">event</i>
+        <input id="duration_number" type="number" min="0" max="30" value="0" placeholder="0">
+        <label for="duration_number">Продолжительность (дн)</label>
+      </div>
+
+    </div> <!-- END PRICE, DURATION ROW -->
+
+    <div class="row">
+      <!-- START PREVIEW ROW
+      // https://stackoverflow.com/questions/5365123/insert-vertical-divider-line-between-two-nested-divs-not-full-height
+      // https://stackoverflow.com/questions/52913179/materialize-divier-with-text-in-the-middle
+      --> 
+
+      <div class="col s12">
+        <table id="craft_table">
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </div> <!-- END PREVIEW ROW -->
+
+    <div class="row">
+      <!-- START BUTTON ROW -->
+
+      <div class="input-field col s12">
+        <button class="btn waves-effect waves-light teal disabled" id="sbmBtn" type="submit">Модернизировать
+          <i class="material-icons right">build</i>
+        </button>
+      </div>
+
+    </div> <!-- END BUTTON ROW -->
+
+  </div> <!-- MAIN CONTAINER -->
+
+  <div class="container valign-wrapper center-align" id="preloader" style="position:relative; top:130px;">
+    <!-- START PRELOADER CONTAINER -->
+    <div class="progress">
+      <div class="indeterminate"></div>
+    </div>
+  </div> <!-- END PRELOADER CONTAINER -->
+
+  <div class="preloader-wrapper valign-wrapper center-align big active hide"
+    style="position:absolute; top:45%; left:45%;" id="loader">
+    <!-- START LOADER CONTAINER -->
+    <div class="spinner-layer spinner-green-only">
+      <div class="circle-clipper left">
+        <div class="circle"></div>
+      </div>
+      <div class="gap-patch">
+        <div class="circle"></div>
+      </div>
+      <div class="circle-clipper right">
+        <div class="circle"></div>
+      </div>
+    </div>
+  </div> <!-- END LOADER CONTAINER -->
+
+
+  <div>
+    <!-- START INFO CARDS MESSAGES -->
+
+    <div class="row hide" id="Row_InfoCard">
+      <!-- START INFO CARD ROW -->
+      <div class="col s12">
+        <div class="card-panel red accent-2" id="InfoCard_ColorMain">
+          <span class="white-text" id="InfoCard_TextMain">Эта опция доступна только администраторам.</span>
+        </div>
+      </div> <!-- END INFO CARD ROW -->
+    </div>
+
+  </div> <!-- END INFO CARDS MESSAGES -->
+
+
+  <!-- Compiled and minified JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+  <?!= include('UpgradeVehicleCompany/upgradeVehicleCompany_scripts'); ?>
+
+</body> <!-- END BODY -->
+
+</html>

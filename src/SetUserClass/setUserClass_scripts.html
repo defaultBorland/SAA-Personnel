@@ -1,0 +1,174 @@
+<script>
+
+	var usersObjects = [];
+
+	const callsign_select = document.getElementById("select_name");
+
+	const curPClass_text = document.getElementById("currentPClass_text");
+	const curSClass_text = document.getElementById("currentSClass_text");
+
+	const newPClass_select = document.getElementById("select_pclass");
+	const newSClass_select = document.getElementById("select_sclass");
+
+	document.addEventListener('DOMContentLoaded', function () {
+		var elems = document.querySelectorAll('select');
+		var instances = M.FormSelect.init(elems);
+	});
+
+	function accessValidation(isAdmin) {
+		document.getElementById("preloader").classList.add("hide");
+		if (isAdmin) {
+			document.getElementById("preloader").classList.remove("hide");
+			initClasses();
+		} else {
+			document.getElementById("Row_InfoCard").classList.remove("hide");
+		};
+	};
+
+	function updateNicknames(data) {
+		usersObjects = data.filter(function (user) { // WTF?
+			return true;
+		});
+
+		for (let i in usersObjects) {
+			let selectobject = document.createElement("option");
+			selectobject.text = usersObjects[i].name;
+			callsign_select.appendChild(selectobject);
+		};
+		M.FormSelect.init(callsign_select);
+
+		updateData(usersObjects[0].name);
+
+		callsign_select.addEventListener('change', (event) => {
+			document.getElementById("sbmBtn").classList.add("disabled");
+			updateData(M.FormSelect.getInstance(callsign_select).input.value);
+		});
+
+		document.getElementById("preloader").classList.add("hide");
+		document.getElementById("Main_Container").classList.remove("hide");
+
+		return;
+	};
+
+	function updateData(name) {
+
+		var userObject = usersObjects.find(function (user) {
+			if (user.name == name) return true;
+		});
+
+		curPClass_text.value = userObject.primclass;
+		curSClass_text.value = userObject.secclass;
+
+		let nodeList = newPClass_select.childNodes;
+		for (let i = 1; i < nodeList.length; i++) {
+			if (nodeList[i].value == userObject.primclass) {
+				nodeList[i].selected = true;
+				M.FormSelect.init(newPClass_select);
+			};
+		};
+
+		nodeList = newSClass_select.childNodes;
+		for (let i = 1; i < nodeList.length; i++) {
+			if (nodeList[i].value == userObject.secclass) {
+				nodeList[i].selected = true;
+				M.FormSelect.init(newSClass_select);
+			};
+		};
+
+		document.getElementById("sbmBtn").classList.remove("disabled");
+	};
+
+	function initClasses() {
+		var primaryClasses = ["Стрелок", "Пулемётчик", "Гренадёр", "Сапёр-инженер", "ПТ/ПВО-Специалист", "Медик", "Марксман", "Снайпер"];
+		var secondaryClasses = ["Гренадёр", "Сапёр-инженер", "ПТ/ПВО-Специалист", "Медик", "Марксман", "Н/Д", "-"];
+
+		for (var i in primaryClasses) {
+			var selectobject = document.createElement("option");
+			selectobject.text = primaryClasses[i];
+			newPClass_select.appendChild(selectobject);
+		};
+		M.FormSelect.init(newPClass_select);
+
+		for (var i in secondaryClasses) {
+			var selectobject = document.createElement("option");
+			selectobject.text = secondaryClasses[i];
+			newSClass_select.appendChild(selectobject);
+		};
+		M.FormSelect.init(newSClass_select);
+
+		google.script.run.withSuccessHandler(updateNicknames).getUsersData("Пользователи");
+	};
+
+	function dataValidation(user, newPrimary, newSecondary) {
+		let oldPrimary = user.primclass;
+		let oldSecondary = user.secclass;
+
+		if (oldPrimary === newPrimary && oldSecondary === newSecondary) {
+			M.toast({ html: "Нельзя присвоить набор специализаций идентичный уже имеющемуся.", displayLength: 4000, classes: 'red' });
+			return false;
+		};
+
+		if (Object.keys(user.quals).includes(newPrimary) && !user.quals[newPrimary]) {
+			M.toast({ html: `Пользователь не имеет квалификации для класса ${newPrimary}.`, displayLength: 4000, classes: 'red' });
+			return false;
+		};
+
+		if (Object.keys(user.quals).includes(newSecondary) && !user.quals[newSecondary]) {
+			M.toast({ html: `Пользователь не имеет квалификации для класса ${newSecondary}.`, displayLength: 4000, classes: 'red' });
+			return false;
+		};
+
+		return true;
+	};
+
+	function buttonClicked() {
+		document.getElementById("sbmBtn").classList.add("disabled");
+		document.getElementById("Main_Container").classList.add("hide");
+		document.getElementById("loader").classList.remove("hide");
+
+		let callsign = M.FormSelect.getInstance(callsign_select).input.value;
+		google.script.run.withFailureHandler(onError).withSuccessHandler(qualificationsRecieved).getUserQualifications(callsign);
+	};
+
+	function qualificationsRecieved(qualifications) {
+		let callsign = M.FormSelect.getInstance(callsign_select).input.value;
+		let user = usersObjects.find(user => user.name === callsign);
+		if (typeof user === 'undefined') return; //fuck it
+		user.quals = qualifications;
+		
+		let newPrimary = M.FormSelect.getInstance(newPClass_select).input.value;
+		let newSecondary = M.FormSelect.getInstance(newSClass_select).input.value;
+
+		if (dataValidation(user, newPrimary, newSecondary)) {			
+			google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).changeClasses(callsign, newPrimary, newSecondary);
+		} else {
+			document.getElementById("loader").classList.add("hide");
+			document.getElementById("Main_Container").classList.remove("hide");
+			setTimeout(function () {
+				document.getElementById("sbmBtn").classList.remove("disabled");
+			}, 4000);
+		};
+	};
+
+	function onError() {
+		document.getElementById("loader").classList.add("hide");
+		document.getElementById("sbmBtn").classList.remove("disabled");
+
+		document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+		document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+		document.getElementById("Row_InfoCard").classList.remove("hide");
+	};
+
+	function onSuccess() {
+		document.getElementById("loader").classList.add("hide");
+		document.getElementById("sbmBtn").classList.remove("disabled");
+
+		document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+		document.getElementById("InfoCard_TextMain").innerHTML = "Специализация успешно изменена.";
+		document.getElementById("Row_InfoCard").classList.remove("hide");
+	};
+
+	google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+	document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+
+</script>

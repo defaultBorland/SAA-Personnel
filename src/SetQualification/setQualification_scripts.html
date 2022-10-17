@@ -1,0 +1,238 @@
+<script>
+
+  var usersObjects = [];
+
+  const name_autocomplete = document.getElementById("name_autocomplete");
+  const steamid_text = document.getElementById("steamid_text");
+  const qual_select = document.getElementById("qual_select");
+  const whom_autocomplete = document.getElementById("whom_autocomplete");
+  const comment_text = document.getElementById("comment_text");
+
+  // Make func to init this from sheet
+  const qualifications = ["КМБ", "Медик", "ПТ/ПВО-Специалист", "Сапёр-Инженер", "Снайпер", "Оператор бронетехники", "Пилот транспортного вертолёта", "Пилот лёгкого вертолёта", "Пилот боевого вертолёта", "Пилот самолёта"];
+  const qualificationsProperties = ["KMBQualifier", "medicQualifier", "ATQualifier", "engineerQualifier", "sniperQualifier", "armoredVehicleQualifier", "transportHeliQualifier", "lightHeliQualifier", "attackHeliQualifier", "jetQualifier"];
+  const armorInstructors = ["Kill_me", "DENgo_glot", "Грин", "Hermant"];
+  const pilotInstructors = ["Kill_me"];
+  const KMBInstructors = ["Hermant", "Kexit", "azelra"];
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var elems = document.querySelectorAll('#name_autocomplete');
+    var options = {
+      data: {
+        "Placeholder": null
+      },
+      onAutocomplete: function (txt) {
+        updateAllData(txt);
+      },
+      minLength: 0,
+    };
+    var instances = M.Autocomplete.init(elems, options);
+
+    name_autocomplete.onkeyup = delay(onKeyUpName, 200);
+    function onKeyUpName() {
+      let user = usersObjects.find(function (user) {
+        return name_autocomplete.value == user.name;
+      });
+
+      if (typeof user !== 'undefined') {
+        updateAllData(user.name);
+      } else {
+        clearAllData();
+      };
+    };
+
+    var elems = document.querySelectorAll('#whom_autocomplete');
+    var options = {
+      data: {
+        "Placeholder": null
+      },
+      minLength: 0,
+    };
+    var instances = M.Autocomplete.init(elems, options);
+
+    var elems = document.querySelectorAll('select');
+    var instances = M.FormSelect.init(elems);
+  });
+
+
+  function accessValidation(isInstructor) {
+    if (isInstructor) {
+      google.script.run.withSuccessHandler(init).getQualifications();
+    } else {
+      document.getElementById("preloader").classList.add("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function init(data) {
+    usersObjects = data;
+
+    let usersNames = new Object;
+    usersObjects.forEach(function (object) {
+      usersNames[object.name] = null;
+    });
+
+    M.Autocomplete.getInstance(name_autocomplete).options.data = usersNames;
+
+    for (let i = 0; i < qualifications.length; i++) {
+      let selectObject = document.createElement("option");
+      selectObject.text = qualifications[i];
+      qual_select.appendChild(selectObject);
+    };
+    M.FormSelect.init(qual_select);
+
+    qual_select.addEventListener('change', (event) => {
+      let name = name_autocomplete.value;
+      let user = usersObjects.find(function (user) {
+        return user.name == name;
+      });
+
+      if (typeof user !== 'undefined') {
+        updateQualData(user)
+      };
+    });
+
+    document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    document.getElementById("sbmBtn").classList.add("disabled");
+    document.getElementById("preloader").classList.add("hide");
+    document.getElementById("Main_Container").classList.remove("hide");
+
+    return true;
+  };
+
+
+  function updateAllData(name) {
+
+    let user = usersObjects.find(function (user) {
+      return user.name == name;
+    });
+
+    steamid_text.value = user.steamid;
+    updateQualData(user);
+
+    return true;
+  };
+
+  function updateQualData(user) {
+    let qualProperty_index = qualifications.findIndex(function (qual) {
+      return qual == qual_select.value;
+    });
+    let qualProperty = qualificationsProperties[qualProperty_index];
+
+    let qualifiedUsers = [];
+    switch (qualProperty) {
+      case 'KMBQualifier':
+        qualifiedUsers = KMBInstructors;
+        break;
+      case 'armoredVehicleQualifier':
+        qualifiedUsers = armorInstructors;
+        break;
+      case 'transportHeliQualifier':
+      case 'lightHeliQualifier':
+      case 'attackHeliQualifier':
+      case 'jetQualifier':
+        qualifiedUsers = pilotInstructors;
+        break;
+      default:
+        let users = usersObjects.filter(function (user) {
+          return user[qualProperty] !== '';
+        });
+        qualifiedUsers = users.map(function (user) {
+          return user.name;
+        });
+    };
+
+    let data = new Object;
+    qualifiedUsers.forEach(function (name) {
+      data[name] = null;
+    });
+    M.Autocomplete.getInstance(whom_autocomplete).options.data = data;
+    whom_autocomplete.value = user[qualProperty];
+
+    updateComment(user, qualProperty);
+    return true;
+  };
+
+  function updateComment(user, qualProperty) {
+    let commentProperty = qualProperty + "Note";
+    comment_text.value = user[commentProperty];
+    M.updateTextFields();
+    M.textareaAutoResize(comment_text);
+    document.getElementById("sbmBtn").classList.remove("disabled");
+  };
+
+  function clearAllData() {
+    steamid_text.value = '';
+    whom_autocomplete.value = '';
+    comment_text.value = '';
+    M.updateTextFields();
+    M.textareaAutoResize(comment_text);
+    document.getElementById("sbmBtn").classList.add("disabled");
+  };
+
+  function dataValidation() {
+
+    if (name_autocomplete.value === "") { return false };
+
+    let isNameValid = usersObjects.some(function (user) {
+      return user.name == name_autocomplete.value
+    });
+
+    return isNameValid;
+  };
+
+  function delay(callback, ms) {
+    var timer = 0;
+    return function () {
+      var context = this, args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        callback.apply(context, args);
+      }, ms || 0);
+    };
+  };
+
+  function buttonClicked() {
+
+    document.getElementById("sbmBtn").classList.add("disabled");
+
+    if (dataValidation()) {
+      document.getElementById("Main_Container").classList.add("hide");
+      document.getElementById("loader").classList.remove("hide");
+
+      let callsign = name_autocomplete.value;
+      let qual = qual_select.value;
+      let whom = whom_autocomplete.value;
+      let comment = comment_text.value;
+
+      google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).setQualifications(callsign, qual, whom, comment);
+
+    } else {
+      M.toast({ html: "Ошибка: Проверьте правильность указанных даных.", displayLength: 4000, classes: 'red' });
+      setTimeout(function () {
+        document.getElementById("sbmBtn").classList.remove("disabled");
+      }, 4000);
+    };
+
+    function onError() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_Color").className = "card-panel red accent-2";
+      document.getElementById("InfoCard_Text").innerHTML = "Произошла ошибка.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+    function onSuccess() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_Color").className = "card-panel teal";
+      document.getElementById("InfoCard_Text").innerHTML = "Сведения о квалификации успешно изменены.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsInstructor();
+</script>

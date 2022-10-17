@@ -1,0 +1,104 @@
+<script>
+
+  var usersObjects = [];
+
+  const mail_text = document.getElementById("mail_text");
+  const steamid_text = document.getElementById("steamid_text");
+  const balance_text = document.getElementById("balance_text");
+  const rank_text = document.getElementById("rank_text");
+  const primclass_text = document.getElementById("primclass_text");
+  const secclass_text = document.getElementById("secclass_text");
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var elems = document.querySelectorAll('select');
+    var instances = M.FormSelect.init(elems);
+  });
+
+  function accessValidation(isAdmin) {
+    if (isAdmin) {
+      google.script.run.withSuccessHandler(updateNicknames).getUsersData("Пользователи");
+      document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    } else {
+      document.getElementById("preloader").classList.add("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function updateNicknames(data) {
+    usersObjects = data.filter(function (user) {
+      return !user.isAdmin;
+    });
+
+    var selectList = document.getElementById("select_name");
+    for (var i in usersObjects) {
+      var selectobject = document.createElement("option");
+      selectobject.text = usersObjects[i].name;
+      selectList.appendChild(selectobject);
+    };
+    M.FormSelect.init(selectList);
+
+    updateData(M.FormSelect.getInstance(selectList).input.value);
+
+    selectList.addEventListener('change', (event) => {
+      document.getElementById("sbmBtn").classList.add("disabled");
+      updateData(M.FormSelect.getInstance(selectList).input.value);
+    });
+
+    document.getElementById("preloader").classList.add("hide");
+    document.getElementById("Main_Container").classList.remove("hide");
+    return true;
+  };
+
+  function updateData(name) {
+
+    var userObject = usersObjects.find(function (user) {
+      if (user.name == name) return true;
+    });
+
+    mail_text.value = userObject.mail;
+    steamid_text.value = userObject.steamid;
+    balance_text.value = userObject.balance.toLocaleString('ru-RU') + " $";
+    rank_text.value = userObject.rank;
+    primclass_text.value = userObject.primclass;
+    secclass_text.value = userObject.secclass;
+
+    document.getElementById("sbmBtn").classList.remove("disabled");
+  };
+
+  function buttonClicked() {
+
+    document.getElementById("sbmBtn").classList.add("disabled");
+
+    document.getElementById("Main_Container").classList.add("hide");
+    document.getElementById("loader").classList.remove("hide");
+
+    var selectList = document.getElementById("select_name");
+    var callsign = M.FormSelect.getInstance(selectList).input.value;
+    var comment = document.getElementById("input_comment").value;
+
+    google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).fireUser(callsign, comment);
+
+    function onError() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+    function onSuccess() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Оперативник отправлен в отставку.";
+      document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+
+</script>

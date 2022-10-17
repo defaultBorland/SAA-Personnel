@@ -1,0 +1,22 @@
+{
+  "name": "saa-personnel",
+  "version": "0.4.1",
+  "description": "SAA Personnel Google Spreadsheets Table Scripts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/defaultBorland/SAA-Personnel-GSTable.git"
+  },
+  "author": "> Borland",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/defaultBorland/SAA-Personnel-GSTable/issues"
+  },
+  "homepage": "https://github.com/defaultBorland/SAA-Personnel-GSTable#readme",
+  "dependencies": {
+    "@types/google-apps-script": "^1.0.30"
+  }
+}

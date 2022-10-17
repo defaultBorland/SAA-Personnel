@@ -1,0 +1,158 @@
+<script>
+
+  var usersObjects = [];
+
+  const name_autocomplete = document.getElementById("name_autocomplete");
+  const mail_text = document.getElementById("mail_text");
+  const steamid_text = document.getElementById("steamid_text");
+  const rank_text = document.getElementById("rank_text");
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var elems = document.querySelectorAll('.autocomplete');
+    options = {
+      data: {
+        "Placeholder": null
+      },
+      onAutocomplete: function (txt) {
+        updateData(txt);
+      },
+      minLength: 0,
+    };
+    var instances = M.Autocomplete.init(elems, options);
+
+    name_autocomplete.onkeyup = delay(onKeyUpName, 200);
+    function onKeyUpName() {
+      let user = usersObjects.find(function (user) {
+        return name_autocomplete.value == user.name;
+      });
+
+      if (typeof user !== 'undefined') {
+        updateData(user.name);
+      } else {
+        clearData();
+      };
+    };
+  });
+
+  function accessValidation(isAdmin) {
+    if (isAdmin) {
+      google.script.run.withSuccessHandler(init).getUsersData("Пользователи");
+    } else {
+      document.getElementById("preloader").classList.add("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function init(data) {
+    usersObjects = data;
+
+    usersObjects = data.filter(function (object) {
+      if (object.mail === "") return true;
+    });
+
+    let usersNames = new Object;
+    usersObjects.forEach(function (object) {
+      usersNames[object.name] = null;
+    });
+
+    M.Autocomplete.getInstance(name_autocomplete).options.data = usersNames;
+
+
+    document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    document.getElementById("sbmBtn").classList.add("disabled");
+    document.getElementById("preloader").classList.add("hide");
+    document.getElementById("Main_Container").classList.remove("hide");
+
+    return;
+  };
+
+  function updateData(name) {
+
+    userObject = usersObjects.find(function (user) {
+      if (user.name == name) return true;
+    });
+
+    steamid_text.value = userObject.steamid;
+    rank_text.value = userObject.rank;
+
+    M.updateTextFields();
+    document.getElementById("sbmBtn").classList.remove("disabled");
+  };
+
+  function clearData() {
+    steamid_text.value = '';
+    rank_text.value = '';
+
+    M.updateTextFields();
+    document.getElementById("sbmBtn").classList.add("disabled");
+  };
+
+  function delay(callback, ms) {
+    var timer = 0;
+    return function () {
+      var context = this, args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        callback.apply(context, args);
+      }, ms || 0);
+    };
+  };
+
+  function dataValidation() {
+    let isPresent = usersObjects.some(function (user) {
+      return user.name == name_autocomplete.value
+    });
+    if (!isPresent) {
+      return false;
+    };
+
+    if (mail_text.value == "") {
+      return false;
+    };
+
+    let regex = new RegExp("[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*");
+    return regex.test(mail_text.value);
+  };
+
+  function buttonClicked() {
+
+    document.getElementById("sbmBtn").classList.add("disabled");
+
+    if (dataValidation()) {
+      document.getElementById("Main_Container").classList.add("hide");
+      document.getElementById("loader").classList.remove("hide");
+
+      let callsign = name_autocomplete.value;
+      let gmail = mail_text.value;
+
+      google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).addMail(callsign, gmail);
+
+    } else {
+      M.toast({ html: "Ошибка: Проверьте правильность указанных даных.", displayLength: 4000, classes: 'red' });
+      setTimeout(function () {
+        document.getElementById("sbmBtn").classList.remove("disabled");
+      }, 4000);
+    };
+
+    function onError() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_Color").className = "card-panel red accent-2";
+      document.getElementById("InfoCard_Text").innerHTML = "Произошла ошибка.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+    function onSuccess() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_Color").className = "card-panel teal";
+      document.getElementById("InfoCard_Text").innerHTML = "GMail успешно добавлен в базу.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+</script>

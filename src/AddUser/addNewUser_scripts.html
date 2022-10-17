@@ -1,0 +1,80 @@
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+      var textNeedCount = document.querySelectorAll('#input_steamid');
+      M.CharacterCounter.init(textNeedCount);
+  });
+
+  function accessValidation(isAdmin) {
+    document.getElementById("preloader").classList.add("hide");
+
+    if (isAdmin) {
+      document.getElementById("Main_Container").classList.remove("hide");
+    } else {
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function buttonClicked() {
+
+    var inputMail = document.getElementById("input_mail").value;
+    var inputSteamid = document.getElementById("input_steamid").value;
+    var inputName = document.getElementById("input_callsign").value;
+
+    if ((inputSteamid == "") || (inputSteamid.length != 17) || (inputName == "")) {
+      document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Проверьте корректность введённых данных."; 
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+      setTimeout(function() {
+        document.getElementById("Row_InfoCard").classList.add("hide");
+        document.getElementById("sbmBtn").classList.remove("disabled");
+      }, 4000);
+    } else {
+
+      document.getElementById("Main_Container").classList.add("hide");
+      document.getElementById("loader").classList.remove("hide");
+
+      var userData = {
+        mail: inputMail.trim(),
+        steamid: inputSteamid,
+        name: inputName
+      };
+
+      google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).addUser(userData);
+
+      function onError() {
+        document.getElementById("loader").classList.add("hide");
+        document.getElementById("Main_Container").classList.remove("hide");
+        
+        document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+        document.getElementById("InfoCard_TextMain").innerHTML = "Пользователь с одним из указанных параметров уже зарегистрирован в базе."; 
+        document.getElementById("Row_InfoCard").classList.remove("hide");
+        
+        setTimeout(function() {
+          document.getElementById("Row_InfoCard").classList.add("hide");
+        }, 4000);
+      };
+
+      function onSuccess() {
+        document.getElementById("loader").classList.add("hide");
+        document.getElementById("Main_Container").classList.remove("hide");
+        
+        document.getElementById("InfoCard_TextMain").innerHTML = "Пользователь успешно добавлен в базу.";
+        document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+        document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+        document.getElementById("Row_InfoCard").classList.remove("hide");
+
+        setTimeout(function() {
+          document.getElementById("Row_InfoCard").classList.add("hide");
+          document.getElementById("InfoCard_ColorAdd").classList.add("hide");
+        }, 4000);
+
+        document.getElementById("input_mail").value = "";
+        document.getElementById("input_steamid").value = "";
+        document.getElementById("input_callsign").value = "";
+      };  
+    };
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+  document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+</script>

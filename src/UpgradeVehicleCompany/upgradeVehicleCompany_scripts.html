@@ -1,0 +1,310 @@
+<script>
+
+  var vehiclesBase = [];
+  var vehiclesEncyclopedia = [];
+  var funds = 0;
+  var today = new Date();
+
+  const initialVehicles_select = document.getElementById("initialVehicles_select");
+  const finalVehicle_autocomplete = document.getElementById("finalVehicle_autocomplete");
+  const price_text = document.getElementById("price_text");
+  const duration_number = document.getElementById("duration_number");
+  const previewCard_text = document.getElementById("previewCard_text");
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var elems = document.querySelectorAll('select');
+    var instances = M.FormSelect.init(elems);
+
+    var elems = document.querySelectorAll('#finalVehicle_autocomplete');
+    var options = {
+      data: {
+        "Placeholder": null
+      },
+      onAutocomplete: function (txt) {
+        updateData(txt);
+      },
+      minLength: 0,
+    };
+    var instances = M.Autocomplete.init(elems, options);
+
+    finalVehicle_autocomplete.onkeyup = delay(onKeyUpName, 200);
+    duration_number.onkeyup = delay(onKeyUpName, 200);
+    price_text.onkeyup = delay(onKeyUpName, 200);
+  });
+
+  function onKeyUpName() {
+    let vehicle = vehiclesEncyclopedia.find(function (vehicle) {
+      return finalVehicle_autocomplete.value === vehicle.name;
+    });
+
+    if (typeof vehicle !== 'undefined') {
+      updateData();
+    } else {
+      clearData();
+    };
+  };
+
+  function accessValidation(isInstructor) {
+    if (isInstructor) {
+      google.script.run.withSuccessHandler(init).getUpgradeVehicleCompanyData();
+    } else {
+      document.getElementById("preloader").classList.add("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function init(data) {
+    [vehiclesBase, vehiclesEncyclopedia, funds, today] = data;
+
+    if (vehiclesBase.length < 1) {
+      document.getElementById("InfoCard_ColorMain").className = "card-panel yellow accent-2";
+      document.getElementById("InfoCard_TextMain").innerHTML = "На главной базе отсутствуют технические единицы для возможности осуществления модернизации.";
+      document.getElementById("InfoCard_TextMain").className = "black-text";
+
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    } else {
+      today = new Date(today);
+
+      populateSelect(initialVehicles_select, vehiclesBase);
+      pupulateAutocomplete(finalVehicle_autocomplete, vehiclesEncyclopedia);
+
+      sanitizeDurationInput();
+      formatMoneysInput();
+      M.updateTextFields();
+
+      document.getElementById("Main_Container").classList.remove("hide");
+      document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    };
+
+    document.getElementById("preloader").classList.add("hide");
+  };
+
+  function populateSelect(element, vehicles) {
+
+    let types = vehiclesBase.map(vehicle => { return vehicle.type });
+    types = Array.from(new Set(types)).sort();
+
+    for (type of types) {
+      let optgroup = document.createElement("optgroup");
+      optgroup.label = type;
+
+      let filteredVehicles = vehicles.filter(vehicle => { return vehicle.type === type });
+      for (vehicle of filteredVehicles) {
+        let option = document.createElement("option");
+        option.text = vehicle.name;
+        optgroup.appendChild(option);
+      };
+
+      element.appendChild(optgroup);
+    };
+
+    M.FormSelect.init(element);
+
+    element.addEventListener('change', (event) => {
+      onKeyUpName();
+    });
+
+    return true;
+  };
+
+  function pupulateAutocomplete(element, data) {
+    let dataObject = new Object;
+
+    data.forEach(vehicle => {
+      dataObject[vehicle.name] = null;
+    });
+
+    M.Autocomplete.getInstance(element).options.data = dataObject;
+  };
+
+  function createTable(rowsData, result) {
+    let tbody = document.createElement("tbody");
+
+    let trFirst = document.createElement("tr");
+    trFirst.style = "border-collapse: collapse; border: none;";
+
+    let tdFirst = document.createElement("td");
+    tdFirst.style = "text-align:left; white-space: nowrap;";
+    tdFirst.appendChild(document.createTextNode(rowsData[0]));
+
+    let tdArrow = document.createElement("td");
+    tdArrow.rowSpan = rowsData.length;
+    tdArrow.style = "width:5%";
+    tdArrow.style = "text-align:center;";
+    tdArrow.appendChild(document.createTextNode("➜"));
+
+    let tdResult = document.createElement("td");
+    tdResult.style = "text-align:left; word-break: break-word;";
+    tdResult.rowSpan = rowsData.length;
+    tdResult.appendChild(document.createTextNode(result));
+
+    trFirst.appendChild(tdFirst);
+    trFirst.appendChild(tdArrow);
+    trFirst.appendChild(tdResult);
+    tbody.appendChild(trFirst);
+
+    rowsData.shift();
+
+    rowsData.forEach(rowData => {
+      let tr = document.createElement("tr");
+      tr.style = "border-collapse: collapse; border: none; white-space: nowrap;";
+
+      let td = document.createElement("td");
+      td.style = "text-align:left;";
+      td.appendChild(document.createTextNode(" +   " + rowData));
+
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+
+    return tbody;
+  };
+
+  function updateData() {
+
+    let initialVehicles = M.FormSelect.getInstance(initialVehicles_select).getSelectedValues();
+    if (initialVehicles.length < 1) { clearData(); return false };
+
+    let rowsData = [].concat(initialVehicles);
+    
+    let cost = parseInt(price_text.value.replace(/\s/g, ''));
+    if (cost > 0) { rowsData.push(cost.toLocaleString('ru-RU') + " $")};
+
+    let finalVehicle = finalVehicle_autocomplete.value;
+
+    finalVehicle += " / ";
+
+    let duration = parseInt(duration_number.value);
+    if (duration > 0) {
+      let date = new Date();
+      date.setDate(today.getDate() + duration);
+      date = date.toLocaleDateString('en-GB', { year: 'numeric', month: "2-digit", day: "2-digit" }).split("/").join(".");
+      finalVehicle += "На модернизации (" + date + ")";
+    } else {
+      finalVehicle += "В резерве";
+    };
+
+    let new_tbody = createTable(rowsData, finalVehicle);
+    let old_tbody = document.getElementById("craft_table").children[0];
+    old_tbody.parentNode.replaceChild(new_tbody, old_tbody);
+
+    document.getElementById("craft_table").classList.remove("hide");
+    document.getElementById("sbmBtn").classList.remove("disabled");
+  };
+
+  function clearData() {
+    document.getElementById("craft_table").classList.add("hide");
+    document.getElementById("sbmBtn").classList.add("disabled");
+  };
+
+  function formatMoneysInput() {
+    price_text.value = "0 $";
+
+    price_text.addEventListener('keyup', function (evt) {
+      var n = parseInt(this.value.replace(/\D/g, ''), 10) || 0;
+      if (n > 0) { n = n.toLocaleString('ru-RU') + " $" } else { n = n + " $" };
+      price_text.value = n;
+    }, false);
+  };
+
+  function sanitizeDurationInput() {
+    duration_number.value = "0";
+
+    duration_number.addEventListener('keyup', function (evt) {
+      let number = parseInt(this.value.replace(/\D/g, ''), 10) || 0;
+      let min = this.getAttribute("min");
+      let max = this.getAttribute("max");
+      this.value = Math.min(max, Math.max(min, number));
+    }, false);
+  };
+
+  function delay(callback, ms) {
+    var timer = 0;
+    return function () {
+      var context = this, args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        callback.apply(context, args);
+      }, ms || 0);
+    };
+  };
+
+  function fetchData() {
+    let initialVehicles = M.FormSelect.getInstance(initialVehicles_select).getSelectedValues();
+    let cost = parseInt(price_text.value.replace(/\s/g, ''));
+    let duration = parseInt(duration_number.value);
+    let finalVehicle = finalVehicle_autocomplete.value;
+
+    return [initialVehicles, cost, duration, finalVehicle];
+  };
+
+  function dataValidation(upgradeData) {
+
+    let [initialVehicles, cost, duration, resultVehicleName] = upgradeData;
+
+    if (initialVehicles.length < 1) {
+      let string = "Ошибка: Не указана хотя бы одна исходная единица.";
+      M.toast({ html: string, displayLength: 4000, classes: 'red' });
+      return false;
+    };
+
+    if (vehiclesEncyclopedia.findIndex(vehicle => {return vehicle.name === resultVehicleName}) < 0) {
+      let string = "Ошибка: Итоговая единица не найдена в Энциклопедии.";
+      M.toast({ html: string, displayLength: 4000, classes: 'red' });
+      return false;
+    };
+
+    if (cost > funds) {
+      let string = "Ошибка: Стоимость модернизации превышает доступные средства.";
+      M.toast({ html: string, displayLength: 4000, classes: 'red' });
+      return false;
+    };
+
+    if (initialVehicles.length === 1 && initialVehicles[0] === resultVehicleName) {
+      let string = "Ошибка: Исходная единица не может быть модернизирована в идентичную.";
+      M.toast({ html: string, displayLength: 4000, classes: 'red' });
+      return false;
+    };
+
+    return true;
+  };
+
+  function buttonClicked() {
+
+    document.getElementById("sbmBtn").classList.add("disabled");
+
+    let upgradeData = fetchData();
+
+    if (dataValidation(upgradeData)) {
+      document.getElementById("Main_Container").classList.add("hide");
+      document.getElementById("loader").classList.remove("hide");
+      google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).upgradeVehicleBase(upgradeData);
+    } else {
+      setTimeout(function () {
+        document.getElementById("sbmBtn").classList.remove("disabled");
+      }, 4000);
+    };
+
+    function onError() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+    function onSuccess() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Техника поставлена на модернизацию.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsInstructor();
+
+</script>

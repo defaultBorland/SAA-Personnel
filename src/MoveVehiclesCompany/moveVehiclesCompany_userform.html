@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--Import Google Icon Font-->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- Compiled and minified CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+
+  <!--Let browser know website is optimized for mobile-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
+    .moved {
+      background-color: #feffcc;
+    }
+  </style>
+
+</head>
+
+<body>
+  <!-- START BODY -->
+
+  <div class="container hide" id="Main_Container">
+    <!-- MAIN CONTAINER -->
+
+    <ul class="collapsible">
+      <li>
+        <div class="collapsible-header"><i class="material-icons">import_contacts</i>ФОБ</div>
+        <div class="collapsible-body">
+          <div class="row">
+            <ul class="collapsible popout" id="collapsible_categories_fob"></ul>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="row"></div>
+
+    <ul class="collapsible" id="collapsible_base">
+      <li>
+        <div class="collapsible-header"><i class="material-icons">import_contacts</i>База</div>
+        <div class="collapsible-body" id="collapsible_base_body">
+          
+        </div>
+      </li>
+    </ul>
+
+    <div class="row"></div>
+
+    <div class="row">
+      <!-- START BUTTON ROW -->
+
+      <div class="input-field col s6 offset-s4">
+        <button class="btn waves-effect waves-light teal" id="sbmBtn" type="submit">Оформить
+          <i class="material-icons right">assignment_turned_in</i>
+        </button>
+      </div>
+
+    </div> <!-- END BUTTON ROW -->
+
+  </div> <!-- MAIN CONTAINER -->
+
+  <div class="container valign-wrapper center-align" id="preloader" style="position:relative; top:130px;">
+    <!-- START PRELOADER CONTAINER -->
+    <div class="progress">
+      <div class="indeterminate"></div>
+    </div>
+  </div> <!-- END PRELOADER CONTAINER -->
+
+  <div class="preloader-wrapper big active hide" id="loader" style="position:absolute; top:45%; left:45%;">
+    <!-- START LOADER CONTAINER -->
+    <div class="spinner-layer spinner-green-only">
+      <div class="circle-clipper left">
+        <div class="circle"></div>
+      </div>
+      <div class="gap-patch">
+        <div class="circle"></div>
+      </div>
+      <div class="circle-clipper right">
+        <div class="circle"></div>
+      </div>
+    </div>
+  </div> <!-- END LOADER CONTAINER -->
+
+
+  <div>
+    <!-- START INFO CARDS MESSAGES -->
+
+    <div class="row hide" id="Row_InfoCard">
+      <!-- START INFO CARD ROW -->
+      <div class="col s12">
+        <div class="card-panel red accent-2" id="InfoCard_ColorMain">
+          <span class="white-text" id="InfoCard_TextMain">Эта опция доступна только инструкторам и
+            администраторам.</span>
+        </div>
+      </div> <!-- END INFO CARD ROW -->
+    </div>
+
+  </div> <!-- END INFO CARDS MESSAGES -->
+
+
+  <!-- Compiled and minified JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+  <?!= include('MoveVehiclesCompany/moveVehiclesCompany_scripts'); ?>
+
+</body> <!-- END BODY -->
+
+</html>

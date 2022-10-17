@@ -1,0 +1,205 @@
+<script>
+
+  var usersObjects = [];
+  var activeAutocomplete = null;
+
+  const name_autocomplete = document.getElementById("name_autocomplete");
+  const steamid_autocomplete = document.getElementById("steamid_autocomplete");
+  const mail_text = document.getElementById("mail_text");
+  const rank_text = document.getElementById("rank_text");
+  const balance_text = document.getElementById("balance_text");
+  const comment_text = document.getElementById("comment_text");
+  const firedBy_text = document.getElementById("firedBy_text");
+
+  document.addEventListener('DOMContentLoaded', function () {
+    name_autocomplete.onchange = function (evt) {
+      activeAutocomplete = evt.target;
+    };
+
+    steamid_autocomplete.onchange = function (evt) {
+      activeAutocomplete = evt.target;
+    };
+
+    var elems = document.querySelectorAll('.autocomplete');
+    var options = {
+      data: {
+        "Placeholder": null
+      },
+      onAutocomplete: function (txt) {
+        triggerUpdateData(txt);
+      },
+      minLength: 0,
+    };
+    var instances = M.Autocomplete.init(elems, options);
+
+    name_autocomplete.onkeyup = delay(onKeyUpName, 200);
+    function onKeyUpName() {
+      let user = usersObjects.find(function (user) {
+        return name_autocomplete.value === user.name;
+      });
+
+      if (typeof user !== 'undefined') {
+        updateData(user.name, name_autocomplete);
+      } else {
+        clearData(name_autocomplete);
+      };
+    };
+
+    steamid_autocomplete.onkeyup = delay(onKeyUpSUID, 200);
+    function onKeyUpSUID() {
+      let user = usersObjects.find(function (user) {
+        return steamid_autocomplete.value == user.steamid;
+      });
+
+      if (typeof user !== 'undefined') {
+        updateData(user.steamid, steamid_autocomplete);
+      } else {
+        clearData(steamid_autocomplete);
+      };
+    };
+
+  });
+
+  function accessValidation(isAdmin) {
+
+    if (isAdmin) {
+      google.script.run.withSuccessHandler(init).getUsersData("Демобилизованные");
+    } else {
+      document.getElementById("preloader").classList.add("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  function init(data) {
+    usersObjects = data;
+
+    let usersNames = new Object;
+    let usersSUIDs = new Object;
+    usersObjects.forEach(function (user) {
+      usersNames[user.name] = null;
+      usersSUIDs[user.steamid] = null;
+    });
+
+    M.Autocomplete.getInstance(name_autocomplete).options.data = usersNames;
+    M.Autocomplete.getInstance(steamid_autocomplete).options.data = usersSUIDs;
+
+    document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+    document.getElementById("sbmBtn").classList.add("disabled");
+    document.getElementById("preloader").classList.add("hide");
+    document.getElementById("Main_Container").classList.remove("hide");
+
+    return true;
+  };
+
+  function triggerUpdateData(txt) {
+    updateData(txt, activeAutocomplete);
+  };
+
+  function updateData(data, exceptElement) {
+
+    let userObject = null;
+
+    if (exceptElement === name_autocomplete) {
+      userObject = usersObjects.find(function (user) {
+        return user.name == data;
+      });
+      steamid_autocomplete.value = userObject.steamid;
+    } else {
+      userObject = usersObjects.find(function (user) {
+        return user.steamid == data;
+      });
+      name_autocomplete.value = userObject.name;
+    };
+
+    mail_text.value = userObject.mail;
+    rank_text.value = userObject.rank;
+    balance_text.value = userObject.balance.toLocaleString('ru-RU') + " $";
+    comment_text.value = userObject.comment;
+
+    let log = userObject.modified;
+    let startIndex = log.indexOf("[");
+    let endIndex = log.indexOf("]");
+    log = log.slice(startIndex + 1, endIndex);
+    firedBy_text.value = log;
+
+    M.updateTextFields();
+    M.textareaAutoResize(comment_text);
+    document.getElementById("sbmBtn").classList.remove("disabled");
+  };
+
+  function clearData(exceptElement) {
+    if (exceptElement === name_autocomplete) {
+      steamid_autocomplete.value = "";
+    } else {
+      name_autocomplete.value = "";
+    };
+
+    mail_text.value = "";
+    rank_text.value = "";
+    balance_text.value = "";
+    firedBy_text.value = "";
+    comment_text.value = "";
+
+    M.updateTextFields();
+    M.textareaAutoResize(comment_text);
+    document.getElementById("sbmBtn").classList.add("disabled");
+  };
+
+  function delay(callback, ms) {
+    var timer = 0;
+    return function () {
+      var context = this, args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        callback.apply(context, args);
+      }, ms || 0);
+    };
+  };
+
+  function dataValidation() {
+    let isNameValid = usersObjects.some(function (user) {
+      return user.name == name_autocomplete.value
+    });
+
+    let isSuidValid = usersObjects.some(function (user) {
+      return user.steamid == steamid_autocomplete.value
+    });
+
+    return (isNameValid && isSuidValid);
+  };
+
+  function buttonClicked() {
+
+    document.getElementById("sbmBtn").classList.add("disabled");
+
+    if (dataValidation()) {
+      document.getElementById("Main_Container").classList.add("hide");
+      document.getElementById("loader").classList.remove("hide");
+
+      let callsign = name_autocomplete.value;
+      google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).rehireUser(callsign);
+    } else {
+      M.toast({ html: "Ошибка: Проверьте правильность указанных даных.", displayLength: 4000, classes: 'red' });
+    };
+
+    function onError() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+
+    function onSuccess() {
+      document.getElementById("loader").classList.add("hide");
+      document.getElementById("sbmBtn").classList.remove("disabled");
+
+      document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+      document.getElementById("InfoCard_TextMain").innerHTML = "Оперативник восстановлен.";
+      document.getElementById("InfoCard_ColorAdd").classList.remove("hide");
+      document.getElementById("Row_InfoCard").classList.remove("hide");
+    };
+  };
+
+  google.script.run.withSuccessHandler(accessValidation).checkIsAdmin();
+</script>

@@ -1,0 +1,482 @@
+<script>
+    var vehiclesFob = [];
+    var vehiclesBase = [];
+    var today = new Date();
+
+    function accessValidation(isInstructor) {
+        if (isInstructor) {
+            google.script.run.withSuccessHandler(init).getMoveVehiclesCompanyData();
+        } else {
+            document.getElementById("preloader").classList.add("hide");
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    function initCollapsible() {
+        var elems = document.querySelectorAll('.collapsible');
+        var instances = M.Collapsible.init(elems, {
+            onOpenEnd: function () {
+                let elem = document.getElementById("collapsible_categories_fob");
+                let children = elem.children;
+                let index = -1;
+
+                for (let i = 0; i < children.length; i++) {
+                    if (children[i].className.includes("active")) {
+                        index = i;
+                        break;
+                    };
+                };
+
+                if (this.$headers[index]) {
+                    this.$headers[index].scrollIntoView();
+                };
+            }
+        });
+    };
+
+    function initDropdowns() {
+        var elems = document.querySelectorAll('.dropdown-trigger');
+        var instances = M.Dropdown.init(elems, {
+            constrainWidth: false,
+            onOpenStart: function () {
+                if (this.el.parentNode.parentNode.parentNode === document.getElementById("base_tbody")) {
+                    populateDropdown(this.el.nextSibling, vehiclesFob.filter(vehicle => { return vehicle.name !== "Пусто" && vehicle.status.includes("В резерве")}).sort((a, b) => { return a.name.localeCompare(b.name) }));
+                } else {
+                    let collapsibleType = this.el.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.firstChild.innerText;
+                    populateDropdown(this.el.nextSibling, vehiclesBase.filter(vehicle => { return vehicle.name !== "Пусто" && vehicle.type === collapsibleType && vehicle.status.includes("В резерве")}).sort((a, b) => { return a.name.localeCompare(b.name) }));
+                };
+            },
+            onCloseEnd: function () {
+                clearDropdown(this.el.nextSibling);
+            }
+        });
+    };
+
+    function init(data) {
+        [today, vehiclesFob, vehiclesBase] = data;
+        today = new Date (today);
+
+        let vehTypes = vehiclesFob.map(veh => { return veh.type });
+        vehTypes = Array.from(new Set(vehTypes));
+
+        // FOB Vehicles Table Init
+        for (type of vehTypes) {
+            let category = createCollapsibleCategory(type);
+            let tbody = createTable(category, true);
+            populateTable(vehiclesFob.filter(veh => { return veh.type === type }).sort(vehicleSorter), tbody, "На Базу");
+        };
+
+        // Base Table Init
+        let divBodyBase = document.getElementById("collapsible_base_body");
+        let base_tbody = createTable(divBodyBase);
+        base_tbody.id = "base_tbody";
+        populateTable(vehiclesBase.sort(vehicleSorter), base_tbody, "На ФОБ");
+
+        initCollapsible();
+        initDropdowns();
+
+        document.getElementById("sbmBtn").addEventListener("click", buttonClicked);
+        document.getElementById("preloader").classList.add("hide");
+        document.getElementById("Main_Container").classList.remove("hide");
+    };
+
+    function createCollapsibleCategory(header) {
+        let li = document.createElement("li");
+
+        let divHeader = document.createElement("div");
+        divHeader.className = "collapsible-header";
+        divHeader.appendChild(document.createTextNode(header));
+
+        let divBody = document.createElement("div");
+        divBody.className = "collapsible-body";
+
+        li.appendChild(divHeader);
+        li.appendChild(divBody);
+
+        let ul = document.getElementById("collapsible_categories_fob");
+        ul.appendChild(li);
+
+        return divBody;
+    };
+
+    function createDropdown(cellDropdown) {
+
+        let dropdownList = document.createElement("ul");
+        dropdownList.className = 'dropdown-content';
+        dropdownList.id = "dropdown_" + Math.random().toString(16).slice(2);
+
+        let dropdownEl = document.createElement("a");
+        dropdownEl.className = 'dropdown-trigger btn';
+        dropdownEl.setAttribute["href", "#"];
+        dropdownEl.dataset.target = dropdownList.id;
+
+        let i = document.createElement("i");
+        i.className = "material-icons";
+        i.appendChild(document.createTextNode("vertical_align_top"));
+        dropdownEl.appendChild(i);
+
+        cellDropdown.appendChild(dropdownEl);
+        cellDropdown.appendChild(dropdownList);
+
+        return true;
+    };
+
+    function clearDropdown(dropdown) {
+        while (dropdown.firstChild) {
+            dropdown.removeChild(dropdown.lastChild);
+        };
+    };
+
+    function populateDropdown(dropdown, vehicles) {
+
+        for (let vehicle of vehicles) {
+            var anchor = document.createElement("a");
+            anchor.appendChild(document.createTextNode(vehicle.name + " / " + vehicle.status));
+            anchor.setAttribute["href", "#"];
+
+            anchor.addEventListener("click", dropdownClick);
+
+            var li = document.createElement("li");
+            li.appendChild(anchor);
+            dropdown.appendChild(li);
+        };
+    };
+
+    function dropdownClick(evt) {
+        let [vehicleName, vehicleStatus] = evt.currentTarget.firstChild.data.split(" / ");
+        let tbody = evt.currentTarget.parentNode.parentNode.parentNode.parentNode.parentNode;
+        let message = "";
+        let vehicleType = "";
+
+        if (tbody === document.getElementById("base_tbody")) {
+            message = "Отправлено на Базу: ";
+            let index = vehiclesFob.findIndex(vehicle => { return vehicle.name === vehicleName && vehicle.status === vehicleStatus });
+            vehicleType = vehiclesFob[index].type;
+            moveVehicle(index, vehiclesFob, vehiclesBase);
+        } else {
+            message = "Отправлено на ФОБ: ";
+            let index = vehiclesBase.findIndex(vehicle => { return vehicle.name === vehicleName && vehicle.status === vehicleStatus });
+            vehicleType = vehiclesBase[index].type;
+            moveVehicle(index, vehiclesBase, vehiclesFob);
+        };
+
+        updateBaseTable();
+        updateFobTable(vehicleType);
+
+        let string = message + vehicleName;
+        M.toast({ html: string, displayLength: 2000 });
+    };
+
+    function createTable(divBody) {
+
+        let table = document.createElement("table");
+        table.className = "highlight centered";
+
+        // HEADER
+        let thead = document.createElement("thead");
+        let headRow = document.createElement("tr");
+
+        // HEADER COLUMNS
+        // NAME
+        let nameHeader = document.createElement("th");
+        nameHeader.style = style = "text-align: center;"
+        nameHeader.appendChild(document.createTextNode("Наименование"));
+        headRow.appendChild(nameHeader);
+
+        // STATUS
+        let statusHeader = document.createElement("th");
+        statusHeader.style = style = "text-align: center;"
+        statusHeader.appendChild(document.createTextNode("Статус"));
+        headRow.appendChild(statusHeader);
+
+        // BUTTON
+        let buttonHeader = document.createElement("th");
+        headRow.appendChild(buttonHeader);
+
+        thead.append(headRow);
+
+        // BODY
+        let tbody = document.createElement("tbody");
+
+        // ASSEMBLING TABLE
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        // ADD TABLE TO PROVIDED DIV
+        divBody.appendChild(table);
+
+        return tbody;
+    };
+
+    function populateTable(vehicles, tbody, buttonType) {
+
+        for (vehicle of vehicles) {
+            let row;
+            if (vehicle.name !== "Пусто") {
+                row = createRow(vehicle, buttonType);
+            } else {
+                row = createEmptyRow(vehicle.type);
+            };
+            tbody.appendChild(row);
+        };
+
+        return true;
+    };
+
+    function createEmptyRow() {
+        let row = document.createElement("tr");
+
+        let cell = document.createElement("td");
+        cell.appendChild(document.createTextNode("Пусто"));
+        cell.setAttribute("colspan", 2);
+        cell.style = "text-align:center";
+        row.appendChild(cell);
+
+        let cellDropdown = document.createElement("td");
+        createDropdown(cellDropdown);
+        row.appendChild(cellDropdown);
+
+        return row;
+    };
+
+    function createRow(vehicle, buttonType) {
+
+        let row = document.createElement("tr");
+
+        // VEHICLE NAME
+        let cellName = document.createElement("td");
+        cellName.appendChild(document.createTextNode(vehicle.name));
+        row.appendChild(cellName);
+
+        // STATUS
+        let cellStatus = document.createElement("td");
+        cellStatus.appendChild(document.createTextNode(vehicle.status));
+        row.appendChild(cellStatus);
+
+        // BUTTON
+        let cellButton = document.createElement("td");
+        let button = document.createElement("button");
+        button.innerHTML = "&#8203;";
+        let i = document.createElement("i");
+        i.className = "material-icons";
+
+        if (buttonType === "На ФОБ") {
+            if (vehicle.isMoved) {
+                i.appendChild(document.createTextNode("undo"));
+            } else {
+                i.appendChild(document.createTextNode("arrow_upward"));
+            };
+            button.addEventListener("click", sendToFob);
+        } else { // На базу
+            if (vehicle.isMoved) {
+                i.appendChild(document.createTextNode("undo"));
+            } else {
+                i.appendChild(document.createTextNode("arrow_downward"));
+            };
+            button.addEventListener("click", returnToBase);
+        };
+
+        button.appendChild(i);
+        button.className = "waves-effect waves-light btn";
+        cellButton.appendChild(button);
+        row.appendChild(cellButton);
+
+        if (!vehicle.status.includes("В резерве") && !vehicle.status.includes("В пути")) {
+            button.setAttribute("disabled", "disabled");
+        };
+
+        if (vehicle.isMoved) {
+            row.classList.add("moved");
+        } else {
+            row.classList.remove("moved");
+        };
+
+        return row;
+    };
+
+    function vehicleSorter(a, b) {
+        if (a.name === "Пусто") { return 1 };
+        if (b.name === "Пусто") { return -1 };
+
+        if (a.name.localeCompare(b.name) !== 0) { return a.name.localeCompare(b.name) };
+        if (a.status.localeCompare(b.status) !== 0) { return b.status.localeCompare(a.status) };
+        if (a.isMoved) { return 1 };
+        return -1;
+    };
+
+    function updateBaseTable() {
+        let old_base_tbody = document.getElementById("base_tbody");
+        let new_base_tbody = document.createElement("tbody");
+        new_base_tbody.id = "base_tbody";
+        populateTable(vehiclesBase.sort(vehicleSorter), new_base_tbody, "На ФОБ");
+        old_base_tbody.parentNode.replaceChild(new_base_tbody, old_base_tbody);
+        initDropdowns();
+
+        return true;
+    };
+
+    function updateFobTable(vehicleType) {
+        let collapsiblesTypes = document.getElementById("collapsible_categories_fob").children;
+        let collapsibleIndex = Array.from(collapsiblesTypes).findIndex(coll => { return coll.firstChild.innerText === vehicleType });
+
+        let old_fob_tbody = collapsiblesTypes[collapsibleIndex].children[1].firstChild.children[1]; // tbody
+        let new_fob_tbody = document.createElement("tbody");
+        populateTable(vehiclesFob.filter(veh => { return veh.type === vehicleType }).sort(vehicleSorter), new_fob_tbody, "На Базу");
+        old_fob_tbody.parentNode.replaceChild(new_fob_tbody, old_fob_tbody);
+        initDropdowns();
+
+        return true;
+    };
+
+    function moveVehicle(vehicleIndex, departureBase, arrivalBase) {
+
+        function calcNewStatus(status) {
+                let arrivalDate = new Date (today.getTime());
+                arrivalDate.setDate(today.getDate() + 3);
+
+            if (status.includes("В пути")) {
+                let statusDate = status.slice(status.indexOf("(") + 1, status.indexOf(")"));
+                statusDate = new Date(statusDate.split(".").reverse());
+
+                let dateDifference = Math.floor((arrivalDate - statusDate) / 86400000);
+                if (dateDifference >= 1) {
+                    arrivalDate.setDate(today.getDate() + dateDifference);
+                    arrivalDate = arrivalDate.toLocaleDateString('en-GB', { year: 'numeric', month: "2-digit", day: "2-digit" }).split("/").join(".");
+                    status = "В пути (" + arrivalDate + ")";
+                } else {
+                    status = "В резерве";
+                };
+            } else {
+                arrivalDate = arrivalDate.toLocaleDateString('en-GB', { year: 'numeric', month: "2-digit", day: "2-digit" }).split("/").join(".");
+                status = "В пути (" + arrivalDate + ")";
+            };
+
+            return status;
+        };
+
+        if (departureBase[vehicleIndex].isMoved) {
+            departureBase[vehicleIndex].isMoved = false;
+        } else {
+            departureBase[vehicleIndex].isMoved = true;
+        };
+
+        departureBase[vehicleIndex].status = calcNewStatus(departureBase[vehicleIndex].status);
+        let emptyIndex = arrivalBase.findIndex(vehicle => {
+            if (arrivalBase === vehiclesFob) {
+                return vehicle.name === "Пусто" && vehicle.type === departureBase[vehicleIndex].type;
+            } else {
+                return vehicle.name === "Пусто";
+            }
+        });
+        if (emptyIndex > -1) { arrivalBase.splice(emptyIndex, 1) };
+
+        let emptySlot = new Object;
+        emptySlot.name = "Пусто";
+        emptySlot.type = departureBase[vehicleIndex].type;
+
+        arrivalBase.push(departureBase[vehicleIndex]);
+        departureBase.splice(vehicleIndex, 1);
+        departureBase.push(emptySlot);
+
+        return true;
+    };
+
+    function sendToFob(evt) {
+
+        let row = evt.currentTarget.parentNode.parentNode;
+        let vehicleName = row.firstChild.firstChild.data;
+        let vehicleStatus = row.children[1].firstChild.data;
+        let vehicleIsMoved = row.className.includes("moved");
+
+        let vehicleIndex = vehiclesBase.length - 1 - vehiclesBase.slice().reverse().findIndex(vehicle => { return vehicle.name === vehicleName && vehicle.status === vehicleStatus && (vehicle.isMoved === vehicleIsMoved || vehicle.isMoved === undefined) });
+        if (vehicleIndex < 0) { console.log(["Error: Can't find vehicle. Data mismatch."]); M.toast({ html: "Произошла ошибка. Возможно несовпадение данных.", displayLength: 2000 }); return false };
+
+        let vehicleType = vehiclesBase[vehicleIndex].type;
+        let emptySlots = vehiclesFob.filter(vehicle => { return vehicle.name === "Пусто" && vehicle.type === vehicleType }).length;
+
+        if (emptySlots < 1) {
+            M.toast({ html: "Ошибка: На ФОБе недостаточно мест для техники данного типа.", displayLength: 4000, classes: 'red' });
+        } else {
+
+            moveVehicle(vehicleIndex, vehiclesBase, vehiclesFob);
+            updateBaseTable();
+            updateFobTable(vehicleType);
+
+            let string = "Отправлено на ФОБ: " + vehicleName;
+            M.toast({ html: string, displayLength: 2000 });
+        };
+    };
+
+    function returnToBase(evt) {
+
+        let row = evt.currentTarget.parentNode.parentNode;
+        let vehicleName = row.firstChild.firstChild.data;
+        let vehicleStatus = row.children[1].firstChild.data;
+        let vehicleIsMoved = row.className.includes("moved");
+
+        let vehicleIndex = vehiclesFob.findIndex(vehicle => { return vehicle.name === vehicleName && vehicle.status === vehicleStatus && (vehicle.isMoved === vehicleIsMoved || vehicle.isMoved === undefined) });
+        if (vehicleIndex < 0) { console.log(["Error: Can't find vehicle. Data mismatch."]); M.toast({ html: "Произошла ошибка. Возможно несовпадение данных.", displayLength: 2000 }); return false };
+
+        let emptySlots = vehiclesBase.filter(vehicle => { return vehicle.name === "Пусто" }).length;
+
+        if (emptySlots < 1) {
+            M.toast({ html: "Ошибка: На Базе недостаточно мест для техники данного типа.", displayLength: 4000, classes: 'red' });
+        } else {
+
+            let vehicleType = vehiclesFob[vehicleIndex].type;
+            moveVehicle(vehicleIndex, vehiclesFob, vehiclesBase);
+            updateBaseTable();
+            updateFobTable(vehicleType);
+
+            let string = "Отправлено на Базу: " + vehicleName;
+            M.toast({ html: string, displayLength: 2000 });
+        };
+    };
+
+    function dataValidation() {
+        
+        if (vehiclesFob.filter(vehicle => {return vehicle.isMoved}) + vehiclesBase.filter(vehicle => {return vehicle.isMoved}) < 1) {
+            let string = "Ошибка: Не произведено ни одного перемещения техники.";
+            M.toast({ html: string, displayLength: 4000, classes: 'red'});
+            return false;
+        };
+
+        return true;
+    };
+
+    function buttonClicked() {
+
+        document.getElementById("sbmBtn").classList.add("disabled");
+
+        if (dataValidation()) {
+            document.getElementById("Main_Container").classList.add("hide");
+            document.getElementById("loader").classList.remove("hide");
+
+            google.script.run.withFailureHandler(onError).withSuccessHandler(onSuccess).moveVehiclesCompany(vehiclesFob, vehiclesBase);
+        } else {
+            setTimeout(function () {
+                document.getElementById("sbmBtn").classList.remove("disabled");
+            }, 4000);
+        };
+
+        function onError() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel red accent-2";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Произошла ошибка.";
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+
+        function onSuccess() {
+            document.getElementById("loader").classList.add("hide");
+            document.getElementById("sbmBtn").classList.remove("disabled");
+
+            document.getElementById("InfoCard_ColorMain").className = "card-panel teal";
+            document.getElementById("InfoCard_TextMain").innerHTML = "Передислокация техники совершена.";
+            document.getElementById("Row_InfoCard").classList.remove("hide");
+        };
+    };
+
+    google.script.run.withSuccessHandler(accessValidation).checkIsInstructor();
+</script>
